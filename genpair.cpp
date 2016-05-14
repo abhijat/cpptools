@@ -1,6 +1,7 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <stdexcept>
 
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
@@ -24,6 +25,9 @@ bool check_file_can_be_created(const std::string& a, const std::string& b)
 void build_header(const std::string& f, const std::string& ext, const po::variables_map& vm)
 {
     std::ofstream ofs(f);
+    if (!ofs) {
+        throw std::runtime_error("failed to create header");
+    }
 
     auto ns = vm["namespace"].as<std::string>();
     auto cls = vm["class"].as<std::string>();
@@ -46,6 +50,9 @@ void build_header(const std::string& f, const std::string& ext, const po::variab
 void build_source(const std::string& s, const std::string& h, const po::variables_map& vm)
 {
     std::ofstream ofs(s);
+    if (!ofs) {
+        throw std::runtime_error("failed to create source");
+    }
     
     ofs << "#include \"" << h << "\";\n";
     ofs << "\n" << "namespace " << vm["namespace"].as<std::string>() << "\n";
@@ -83,8 +90,13 @@ int process_options(const po::variables_map& vm)
         return return_code::FAILURE_FILE_EXISTS;
     }
 
-    build_header(header_name, header_extension, vm);
-    build_source(source_name, header_name, vm);
+    try {
+        build_header(header_name, header_extension, vm);
+        build_source(source_name, header_name, vm);
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to create files " << e.what() << std::endl;
+        return return_code::FAILURE_CREATE_FILE;
+    }
 
     return return_code::SUCCESS;
 }
